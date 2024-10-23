@@ -11,7 +11,10 @@ import java.util.function.Function;
 @AllArgsConstructor
 @Getter
 @Setter
+@NoArgsConstructor
 public class PlaybackDto {
+    private static final PlaybackDto EMPTY_PATCH = new PlaybackDto();
+
     private String title;
     private String artist;
     private String album;
@@ -24,6 +27,17 @@ public class PlaybackDto {
     // created for call on PATCH object, if patch affects title, artist or album, song changed
     public boolean isDiffSongTouched() {
         return title != null || artist != null || album != null;
+    }
+
+    public boolean isOnlyPositionSet() {
+        return title == null &&
+                artist == null &&
+                album == null &&
+                player == null &&
+                artHttpUrl == null &&
+                position != null && // <-- NOT NULL CHECK FOR PATCH OBJECT
+                duration == null &&
+                volume == null;
     }
 
     // only for {@link #diff}
@@ -71,5 +85,9 @@ public class PlaybackDto {
                 m(this, patch, PlaybackDto::getDuration),
                 m(this, patch, PlaybackDto::getVolume)
         );
+    }
+
+    public static PlaybackDto cloneDto(PlaybackDto dto) {
+        return dto.newWithPatch(EMPTY_PATCH);
     }
 }

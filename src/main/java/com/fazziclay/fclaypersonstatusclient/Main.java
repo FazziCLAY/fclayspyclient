@@ -4,24 +4,77 @@ import com.fazziclay.fclaypersonstatusclient.linux.LinuxSong;
 import com.fazziclay.fclaypersonstatusclient.linux.SoundMatcher;
 import com.fazziclay.fclaysystem.personstatus.api.dto.PlaybackDto;
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import lombok.Getter;
+import lombok.Setter;
 
+import javax.swing.*;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class Main {
     private static final Gson GSON = new Gson();
+    private static Tray tray;
     private static FClayClient client;
+    @Getter
+    private static PlaybackDto playbackDto;
+    @Setter
+    @Getter
+    private static boolean disablePosting;
+    private static boolean configLoaded;
+
+    public static String playbackDtoString() {
+        if (!isPlaying()) {
+            return "No music :<";
+        }
+        return String.format("%s - %s", playbackDto.getArtist(), playbackDto.getTitle());
+    }
 
     public static void main(String[] args) throws InterruptedException, IOException {
-        JsonObject config = GSON.fromJson(Files.readString(Path.of(args[0])), JsonObject.class);
-        loadConfig(config);
+        tray = new Tray();
+        tray.start();
+
+
+        new Thread(() -> {
+            while (true) {
+                try {
+                    SwingUtilities.invokeAndWait(() -> {
+                        tray.tick();
+                    });
+                    Thread.sleep(250);
+                } catch (InterruptedException | InvocationTargetException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        })
+                .start();
 
         while (true) {
-            LinuxSong currentLinuxSong = SoundMatcher.getCurrentSong();
-            PlaybackDto playbackDto = currentLinuxSong == null ? null : currentLinuxSong.asPlaybackDto();
-            client.postSong(playbackDto);
+            if (!configLoaded) {
+                try {
+                    JsonObject config = GSON.fromJson(Files.readString(Path.of(args[0])), JsonObject.class);
+                    loadConfig(config);
+                    configLoaded = true;
+                    tray.setConfigLoaded(true);
+
+                } catch (Exception ignored) {
+                    Debug.debug("Can't be load config :(");
+                }
+            }
+
+            if (configLoaded) {
+                LinuxSong currentLinuxSong = SoundMatcher.getCurrentSong();
+                playbackDto = currentLinuxSong == null ? null : currentLinuxSong.asPlaybackDto();
+                if (disablePosting) {
+                    client.delete();
+                } else {
+                    client.postSong(playbackDto);
+                }
+            }
+
             Thread.sleep(2000);
         }
     }
@@ -29,11 +82,12 @@ public class Main {
     private static void loadConfig(JsonObject config) {
         String accessToken = config.get("accessToken").getAsString();
         String baseUrl = config.get("baseUrl").getAsString();
+        JsonElement personName = config.get("personName");
         String blackListPath = config.get("blacklist").getAsString();
         String[] allowedPrograms = config.get("allowedPrograms").getAsString().split(",");
 
         // setting client
-        client = new FClayClient(baseUrl, accessToken);
+        client = new FClayClient(baseUrl, personName == null ? "fazziclay" : personName.getAsString(), accessToken);
         client.setDebug(Debug.DEBUG);
 
         // allowed programs
@@ -59,4 +113,7 @@ public class Main {
         }
     }
 
+    public static boolean isPlaying() {
+        return playbackDto != null;
+    }
 }

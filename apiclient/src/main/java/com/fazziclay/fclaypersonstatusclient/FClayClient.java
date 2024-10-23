@@ -19,13 +19,16 @@ public class FClayClient {
     @Getter
     private final Retrofit retrofit;
     private final PersonStatusApi api;
+    private final String personName;
     private final String accessToken;
     private PlaybackDto serverSong;
     private long ssPostTime;
     private long ssPostTimeResponse;
     private boolean failedPost;
+    private long latestApiPatch;
 
-    public FClayClient(String baseUrl, String accessToken) {
+    public FClayClient(String baseUrl, String personName, String accessToken) {
+        this.personName = personName;
         this.accessToken = accessToken;
         this.retrofit = new Retrofit.Builder()
                 .baseUrl(baseUrl)
@@ -49,19 +52,20 @@ public class FClayClient {
         }
 
         PlaybackDto diff = PlaybackDto.diff(playbackDto, serverSong);
-        debug("diff="+diff);
+        debug("diff=" + diff);
 
-        if (failedPost || (diff.isDiffSongTouched() || System.currentTimeMillis() - ssPostTime > 50000)) {
+        if (failedPost || diff.isDiffSongTouched() || System.currentTimeMillis() - ssPostTime > 50000) {
             apiPut(playbackDto);
 
-        } else if (!Objects.equals(serverSong, playbackDto)) {
+        } else if ((!Objects.equals(serverSong, playbackDto)) && (!diff.isOnlyPositionSet() || System.currentTimeMillis() - latestApiPatch > 15000)) {
             apiPatch(diff);
+            latestApiPatch = System.currentTimeMillis();
         }
     }
 
     public void delete() {
         if (serverSong == null) return;
-        api.deleteMusic(accessToken).enqueue(new DeleteMusicCallback());
+        apiDelete();
     }
 
 
@@ -73,13 +77,18 @@ public class FClayClient {
 
 
     // ============= A P I ===================
+    private void apiDelete() {
+        api.deleteMusic(personName, accessToken).enqueue(new DeleteMusicCallback());
+        ssPostTime = System.currentTimeMillis();
+    }
+
     private void apiPut(@NotNull PlaybackDto playback) {
-        api.putMusic(accessToken, playback).enqueue(new PostMusicCallback());
+        api.putMusic(personName, accessToken, playback).enqueue(new PostMusicCallback());
         ssPostTime = System.currentTimeMillis();
     }
 
     private void apiPatch(@NotNull PlaybackDto playback) {
-        api.patchMusic(accessToken, playback).enqueue(new PostMusicCallback());
+        api.patchMusic(personName, accessToken, playback).enqueue(new PostMusicCallback());
         ssPostTime = System.currentTimeMillis();
     }
 
