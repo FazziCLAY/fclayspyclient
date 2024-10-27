@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class Main {
+    private static final long GC_INTERVAL_MS = 1000 * 60 * 2;
     private static final Gson GSON = new Gson();
     private static Tray tray;
     private static FClayClient client;
@@ -24,6 +25,7 @@ public class Main {
     @Getter
     private static boolean disablePosting;
     private static boolean configLoaded;
+    private static long gclatest;
 
     public static String playbackDtoString() {
         if (!isPlaying()) {
@@ -33,6 +35,8 @@ public class Main {
     }
 
     public static void main(String[] args) throws InterruptedException, IOException {
+        gclatest = System.currentTimeMillis() - GC_INTERVAL_MS + (1000 * 4);
+
         tray = new Tray();
         tray.start();
 
@@ -72,6 +76,13 @@ public class Main {
                 } else {
                     client.postSong(playbackDto);
                 }
+            }
+
+            long curr;
+            if ((curr = System.currentTimeMillis()) - gclatest > GC_INTERVAL_MS) {
+                System.out.println("GC Called");
+                System.gc();
+                gclatest = curr;
             }
 
             Thread.sleep(2000);
