@@ -13,17 +13,38 @@ public class Tray {
     private final TrayIcon trayIcon;
     @Setter
     private boolean configLoaded;
+    MenuItem exitButton;
+    CheckboxMenuItem postingButton;
 
     public Tray() {
-        this.trayIcon = new TrayIcon(new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB), "FClaySPY", new PopupMenu());
+        this.trayIcon = new TrayIcon(new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB), "FClaySPY", new PopupMenu());
     }
 
     public void start() {
         popup = new PopupMenu();
         popup.add(new MenuItem("Waiting..."));
         trayIcon.setPopupMenu(popup);
-
         trayIcon.setImageAutoSize(true);
+
+        exitButton = new MenuItem("Exit");
+        ActionListener exitListener = e -> {
+            System.out.println("Exit tray icon clicked");
+            int reply = JOptionPane.showConfirmDialog(null, "Are you sure you want to close?", "Close?", JOptionPane.YES_NO_OPTION);
+            if (reply == JOptionPane.YES_OPTION) {
+                System.exit(0);
+            }
+        };
+        exitButton.addActionListener(exitListener);
+
+
+        postingButton = new CheckboxMenuItem("Disable posting", Main.isDisablePosting());
+        ItemListener po = e -> {
+            System.out.println(e);
+            Main.setDisablePosting(!Main.isDisablePosting());
+            postingButton.setState(Main.isDisablePosting());
+            tick();
+        };
+        postingButton.addItemListener(po);
 
         try {
             SystemTray tray = SystemTray.getSystemTray();
@@ -50,23 +71,7 @@ public class Tray {
 
     public void setIconType(IconType iconType) {
         if (currentIcon != iconType) {
-            BufferedImage img = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D graphics = img.createGraphics();
-
-            graphics.setPaint(iconType.getColor());
-            graphics.fillRect(0, 0, img.getWidth(), img.getHeight());
-            if (iconType == IconType.POSTING_DISABLED) {
-                graphics.setPaint(Color.BLUE);
-                graphics.fillRect(0, 0, img.getWidth()/2, img.getHeight()/2);
-            }
-            if (iconType == IconType.PLAYING) {
-                graphics.setPaint(new Color((int) System.currentTimeMillis()));
-                graphics.fillRect(0, img.getHeight()-1, img.getWidth(), img.getHeight());
-            }
-            img.flush();
-
-
-            trayIcon.setImage(img);
+            trayIcon.setImage(iconType.getImage());
             currentIcon = iconType;
         }
     }
@@ -80,28 +85,9 @@ public class Tray {
     private void updatePopup() {
         popup.removeAll();
 
-        MenuItem exit = new MenuItem("Exit");
-        ActionListener exitListener = e -> {
-            System.out.println("Exit tray icon clicked");
-            int reply = JOptionPane.showConfirmDialog(null, "Are you sure you want to close?", "Close?", JOptionPane.YES_NO_OPTION);
-            if (reply == JOptionPane.YES_OPTION) {
-                System.exit(0);
-            }
-        };
-        exit.addActionListener(exitListener);
-
-        CheckboxMenuItem posting = new CheckboxMenuItem("Disable posting", Main.isDisablePosting());
-        ItemListener po = e -> {
-            System.out.println(e);
-            Main.setDisablePosting(!Main.isDisablePosting());
-            posting.setState(Main.isDisablePosting());
-            tick();
-        };
-        posting.addItemListener(po);
-
         popup.add(Main.playbackDtoString());
-        popup.add(posting);
-        popup.add(exit);
+        popup.add(postingButton);
+        popup.add(exitButton);
         popup.add("");
     }
 }

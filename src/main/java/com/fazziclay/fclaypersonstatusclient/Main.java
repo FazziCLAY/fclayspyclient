@@ -8,10 +8,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.val;
 
-import javax.swing.*;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -38,19 +37,19 @@ public class Main {
         tray.start();
 
 
-        new Thread(() -> {
+        val thread = new Thread(() -> {
             while (true) {
                 try {
-                    SwingUtilities.invokeAndWait(() -> {
-                        tray.tick();
-                    });
-                    Thread.sleep(250);
-                } catch (InterruptedException | InvocationTargetException e) {
+                    tray.tick();
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
             }
-        })
-                .start();
+        });
+        thread.setDaemon(true);
+        thread.setName("TrayIconUpdaterThread");
+        thread.start();
 
         while (true) {
             if (!configLoaded) {
