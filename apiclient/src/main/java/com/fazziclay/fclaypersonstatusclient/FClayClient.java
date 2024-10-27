@@ -26,6 +26,8 @@ public class FClayClient {
     private long ssPostTimeResponse;
     private boolean failedPost;
     private long latestApiPatch;
+    private final DeleteMusicCallback deleteMusicCallback = new DeleteMusicCallback();
+    private final PostMusicCallback postMusicCallback = new PostMusicCallback();
 
     public FClayClient(String baseUrl, String personName, String accessToken) {
         this.personName = personName;
@@ -78,17 +80,17 @@ public class FClayClient {
 
     // ============= A P I ===================
     private void apiDelete() {
-        api.deleteMusic(personName, accessToken).enqueue(new DeleteMusicCallback());
+        api.deleteMusic(personName, accessToken).enqueue(deleteMusicCallback);
         ssPostTime = System.currentTimeMillis();
     }
 
     private void apiPut(@NotNull PlaybackDto playback) {
-        api.putMusic(personName, accessToken, playback).enqueue(new PostMusicCallback());
+        api.putMusic(personName, accessToken, playback).enqueue(postMusicCallback);
         ssPostTime = System.currentTimeMillis();
     }
 
     private void apiPatch(@NotNull PlaybackDto playback) {
-        api.patchMusic(personName, accessToken, playback).enqueue(new PostMusicCallback());
+        api.patchMusic(personName, accessToken, playback).enqueue(postMusicCallback);
         ssPostTime = System.currentTimeMillis();
     }
 
